@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ular Tangga Informatika - Perangkat Keras Komputer</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            p1: '#ef4444',
+            p2: '#3b82f6',
+            p3: '#10b981',
+            p4: '#f59e0b',
+            p5: '#8b5cf6',
+            p6: '#ec4899',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      touch-action: manipulation;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: #0f172a;
+    }
+
+    .board-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 10 / 5.2;
+    }
+
+    @media (max-width: 640px) {
+      .board-wrapper {
+        aspect-ratio: 10 / 6.5;
+      }
+    }
+
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      grid-template-rows: repeat(5, minmax(0, 1fr));
+      gap: 3px;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 10;
+    }
+
+    .board-cell {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 2px 4px;
+      border-radius: 8px;
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.25);
+      transition: transform 0.2s;
+    }
+
+    #svg-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .tokens-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 30;
+      pointer-events: none;
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      grid-template-rows: repeat(5, minmax(0, 1fr));
+      gap: 3px;
+    }
+
+    .token-item {
+      width: clamp(14px, 2.5vw, 26px);
+      height: clamp(14px, 2.5vw, 26px);
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      color: white;
+      font-weight: 900;
+    }
+
+    .dice-box {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-touch:active {
+      transform: scale(0.96);
+    }
+
+    .entity-badge {
+      font-size: 0.7rem;
+      line-height: 1;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-weight: 800;
+    }
+
+    /* Speech Bubble Triangle */
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 20px;
+      border-width: 10px 10px 0;
+      border-style: solid;
+      border-color: #1e293b transparent;
+      display: block;
+      width: 0;
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+  <header class="bg-slate-800/90 backdrop-blur-md border-b border-slate-700 px-4 py-3 shadow-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-3">
+        <div class="bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white p-2.5 rounded-xl shadow-lg">
+          <i class="fa-solid fa-laptop-code text-xl md:text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-lg md:text-2xl text-white tracking-wide">Ular Tangga Informatika</h1>
+          <p class="text-xs md:text-sm text-indigo-300 font-medium">Materi: Perangkat Keras Komputer (Hardware)</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="triggerRaraGuide()" class="btn-touch bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold px-3 py-2.5 rounded-xl text-xs md:text-sm flex items-center gap-2 shadow-lg border border-pink-400">
+          <i class="fa-solid fa-person-dress text-base"></i>
+          <span>Panduan Rara</span>
+        </button>
+        <button id="sound-toggle" onclick="toggleAudio()" class="btn-touch bg-slate-700 hover:bg-slate-600 text-yellow-400 p-2.5 rounded-xl border border-slate-600 text-base md:text-lg flex items-center justify-center min-w-[44px] min-h-[44px]" title="Suara On/Off">
+          <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+        </button>
+        <button onclick="confirmReset()" class="btn-touch bg-rose-600/90 hover:bg-rose-600 text-white font-bold px-3 py-2.5 rounded-xl text-xs md:text-sm flex items-center gap-1.5 shadow-md border border-rose-500">
+          <i class="fa-solid fa-rotate-right"></i>
+          <span class="hidden sm:inline">Ulangi Game</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl w-full mx-auto p-2 sm:p-4 md:p-6 flex-1 flex flex-col gap-4">
+    
+    <!-- Rara 3D Avatar Banner Section -->
+    <section class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-2 border-pink-500/50 rounded-2xl p-3 sm:p-4 shadow-xl flex flex-col md:flex-row items-center gap-4 relative overflow-hidden">
+      
+      <!-- 3D Canvas Area for Rara Avatar -->
+      <div class="relative w-28 h-28 sm:w-32 sm:h-32 bg-slate-800/80 rounded-2xl border-2 border-pink-400/60 shadow-inner flex-shrink-0 overflow-hidden cursor-pointer" onclick="waveRara()" title="Klik Rara untuk menyapa!">
+        <canvas id="rara-canvas" class="w-full h-full"></canvas>
+        <div class="absolute bottom-1 right-1 bg-pink-600/80 text-[10px] text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider backdrop-blur-sm">
+          NPC 3D
+        </div>
+      </div>
+
+      <!-- Speech Bubble & Dialog from Rara -->
+      <div class="flex-1 w-full">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-3 sm:p-4 shadow-md relative speech-bubble">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="font-black text-pink-400 text-sm sm:text-base flex items-center gap-1.5">
+              <i class="fa-solid fa-sparkles"></i> Rara — Pemandu 3D Game
+            </h3>
+            <span class="text-[11px] text-slate-400 font-semibold bg-slate-900/80 px-2 py-0.5 rounded-full border border-slate-700">Tries S. Ramadhani</span>
+          </div>
+          <p id="rara-dialog-text" class="text-xs sm:text-sm text-slate-200 leading-relaxed font-medium">
+            "Halo semuanya! Aku <b class="text-pink-300">Rara</b>, pemandu kalian. Ayo main Ular Tangga Perangkat Keras Komputer! Lempar dadu, jawab soal cerita dengan tepat, dan kumpulkan poin untuk menang!"
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 justify-center items-start w-full">
+      
+      <!-- Board Area (Grid + SVG Overlay + Tokens) -->
+      <section class="w-full lg:w-2/3 bg-slate-800/80 border border-slate-700/80 rounded-2xl p-2 sm:p-4 shadow-2xl flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between bg-slate-900/90 px-3 py-2 rounded-xl text-xs sm:text-sm border border-slate-700/80 gap-2">
+          <div class="flex items-center gap-3 font-semibold">
+            <span class="text-amber-400 flex items-center gap-1"><i class="fa-solid fa-stairs text-base"></i> Tangga (Naik)</span>
+            <span class="text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-worm text-base"></i> Ular (Turun)</span>
+          </div>
+          <div class="text-slate-400 text-xs font-mono">
+            Kotak 1 ➔ Kotak 50 (FINISH)
+          </div>
+        </div>
+
+        <div class="board-wrapper bg-slate-950 rounded-xl border-2 border-slate-700 shadow-2xl overflow-hidden" id="board-container">
+          <div id="board-grid" class="board-grid"></div>
+
+          <svg id="svg-overlay" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="snakeGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#10b981" />
+                <stop offset="50%" stop-color="#059669" />
+                <stop offset="100%" stop-color="#047857" />
+              </linearGradient>
+              <linearGradient id="snakeGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f43f5e" />
+                <stop offset="50%" stop-color="#e11d48" />
+                <stop offset="100%" stop-color="#be123c" />
+              </linearGradient>
+              <linearGradient id="ladderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fbbf24" />
+                <stop offset="50%" stop-color="#d97706" />
+                <stop offset="100%" stop-color="#92400e" />
+              </linearGradient>
+              <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/>
+              </filter>
+            </defs>
+            <g id="ladders-group"></g>
+            <g id="snakes-group"></g>
+          </svg>
+
+          <div id="tokens-layer" class="tokens-layer"></div>
+        </div>
+      </section>
+
+      <section class="w-full lg:w-1/3 flex flex-col gap-4">
+        
+        <div id="turn-card" class="bg-slate-800 border-2 border-indigo-500/80 rounded-2xl p-4 shadow-xl transition-all">
+          <div class="text-xs uppercase tracking-wider font-extrabold text-slate-400 mb-1 flex justify-between items-center">
+            <span>Giliran Berjalan</span>
+            <span id="turn-badge" class="bg-indigo-500/20 text-indigo-300 text-[10px] px-2 py-0.5 rounded-full font-bold">Pemain 1</span>
+          </div>
+          
+          <div class="flex items-center gap-3 mb-4">
+            <div id="player-avatar" class="w-12 h-12 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white font-extrabold text-xl bg-p1">
+              P1
+            </div>
+            <div>
+              <h2 id="player-name-display" class="text-xl font-bold text-white leading-tight">Pemain 1</h2>
+              <p id="player-status-sub" class="text-xs text-slate-300">Posisi: <b class="text-yellow-400">Kotak 1</b> | Skor: <b class="text-emerald-400">0 Poin</b></p>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/90 rounded-xl p-4 border border-slate-700/80 flex items-center justify-around">
+            <div id="dice-view" class="dice-box w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-indigo-500 to-indigo-700 border-2 border-indigo-300 text-white rounded-2xl flex items-center justify-center text-3xl md:text-4xl font-black shadow-lg">
+              <i class="fa-solid fa-dice-d6"></i>
+            </div>
+
+            <button id="roll-btn" onclick="rollDice()" class="btn-touch bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-base md:text-lg font-black px-6 py-4 rounded-xl shadow-xl border-b-4 border-emerald-800 flex items-center gap-2 transition-all min-h-[60px]">
+              <i class="fa-solid fa-dice text-xl"></i>
+              <span>KOCOK DADU</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl flex-1 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
+              <h3 class="font-bold text-slate-200 text-base flex items-center gap-2">
+                <i class="fa-solid fa-trophy text-yellow-400"></i> Klasemen Pemain
+              </h3>
+              <span class="text-xs text-slate-400">6 Pemain Total</span>
+            </div>
+
+            <div id="scoreboard-list" class="space-y-2"></div>
+          </div>
+
+          <div class="mt-4 pt-2 border-t border-slate-700/60 text-center">
+            <p class="text-[11px] text-slate-400">Klik 'Panduan Rara' jika ingin penjelasan aturan dari pemandu 3D.</p>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <div id="question-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-3 sm:p-6">
+    <div class="bg-slate-900 border-2 border-indigo-500/60 rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <span id="modal-player-dot" class="w-4 h-4 rounded-full bg-p1 inline-block border border-white"></span>
+          <span id="modal-player-name" class="font-bold text-slate-200 text-sm md:text-base">Pemain 1</span>
+        </div>
+        <div class="bg-indigo-900/60 text-indigo-300 font-bold text-xs sm:text-sm px-3 py-1 rounded-full border border-indigo-700/50 flex items-center gap-1.5">
+          <i class="fa-solid fa-dice-three text-yellow-400"></i>
+          <span>Dadu: <b id="modal-dice-value" class="text-white text-base">4</b></span>
+        </div>
+      </div>
+
+      <div>
+        <span class="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-1">Soal Cerita Informatika:</span>
+        <p id="modal-question-text" class="text-slate-100 font-semibold text-base sm:text-lg md:text-xl leading-relaxed bg-slate-800/80 p-4 rounded-2xl border border-slate-700/60">
+          Loading soal...
+        </p>
+      </div>
+
+      <div id="modal-options" class="grid grid-cols-1 gap-2.5 sm:gap-3 my-1"></div>
+
+      <div class="text-center text-xs text-slate-400 italic">
+        * Jawaban BENAR = +2 Poin & Maju sesuai angka dadu. Jawaban SALAH = Tidak Maju & 0 Poin.
+      </div>
+    </div>
+  </div>
+
+  <div id="win-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-yellow-500 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl flex flex-col items-center gap-4">
+      <div class="w-20 h-20 bg-yellow-500/20 text-yellow-400 rounded-full flex items-center justify-center text-4xl border-2 border-yellow-400 mb-1 animate-bounce">
+        <i class="fa-solid fa-crown"></i>
+      </div>
+      <h2 class="text-2xl sm:text-3xl font-black text-white">PEMENANG GAME!</h2>
+      <p id="win-player-text" class="text-lg text-yellow-300 font-bold">Pemain 1 Berhasil Mencapai Kotak 50!</p>
+      
+      <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 w-full text-left space-y-2 text-sm text-slate-300">
+        <p id="win-score-info">Total Skor: <b>12 Poin</b></p>
+        <p>Selamat kepada sang pemenang yang menguasai materi Perangkat Keras Komputer!</p>
+      </div>
+
+      <button onclick="restartGame()" class="btn-touch w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-xl text-base shadow-lg transition-all border-b-4 border-emerald-800 mt-2">
+        <i class="fa-solid fa-play me-2"></i> Mainkan Lagi
+      </button>
+    </div>
+  </div>
+
+  <footer class="bg-slate-950 border-t border-slate-800 py-3 px-4 text-center text-xs sm:text-sm font-semibold text-slate-400">
+    Dibuat oleh Tries S. Ramadhani
+  </footer>
+
+  <script>
+    /* =======================================================
+       1. THREE.JS 3D FEMALE AVATAR (RARA) ENGINE
+       ======================================================= */
+    let raraScene, raraCamera, raraRenderer;
+    let raraHead, raraLeftArm, raraRightArm, raraBody, raraHair;
+    let raraAnimTime = 0;
+    let isWaving = false;
+    let waveTimer = 0;
+
+    function initRara3DAvatar() {
+      const canvas = document.getElementById('rara-canvas');
+      const width = canvas.clientWidth || 128;
+      const height = canvas.clientHeight || 128;
+
+      raraScene = new THREE.Scene();
+      
+      raraCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
+      raraCamera.position.set(0, 1.25, 3.2);
+
+      raraRenderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+      raraRenderer.setSize(width, height);
+      raraRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+      raraScene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffd1dc, 0.8);
+      dirLight.position.set(2, 4, 3);
+      raraScene.add(dirLight);
+
+      // Rara Character Hierarchy Group
+      const characterGroup = new THREE.Group();
+
+      // Materials
+      const skinMat = new THREE.MeshToonMaterial({ color: 0xffdbac });
+      const dressMat = new THREE.MeshToonMaterial({ color: 0xec4899 });
+      const hairMat = new THREE.MeshToonMaterial({ color: 0x4a2e18 });
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
+      const ribbonMat = new THREE.MeshToonMaterial({ color: 0xf31260 });
+
+      // Head
+      const headGeo = new THREE.SphereGeometry(0.35, 32, 32);
+      raraHead = new THREE.Mesh(headGeo, skinMat);
+      raraHead.position.y = 1.35;
+      characterGroup.add(raraHead);
+
+      // Hair (Top & Side buns)
+      const hairMainGeo = new THREE.SphereGeometry(0.38, 32, 32);
+      raraHair = new THREE.Mesh(hairMainGeo, hairMat);
+      raraHair.position.set(0, 0.05, -0.04);
+      raraHair.scale.set(1.02, 1.05, 1.02);
+      raraHead.add(raraHair);
+
+      // Pigtails / Buns
+      const bunGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const leftBun = new THREE.Mesh(bunGeo, hairMat);
+      leftBun.position.set(-0.35, 0.15, -0.05);
+      raraHead.add(leftBun);
+
+      const rightBun = new THREE.Mesh(bunGeo, hairMat);
+      rightBun.position.set(0.35, 0.15, -0.05);
+      raraHead.add(rightBun);
+
+      // Ribbon Bows
+      const ribbonGeo = new THREE.BoxGeometry(0.08, 0.08, 0.04);
+      const ribbonLeft = new THREE.Mesh(ribbonGeo, ribbonMat);
+      ribbonLeft.position.set(-0.3, 0.22, 0.02);
+      raraHead.add(ribbonLeft);
+
+      const ribbonRight = new THREE.Mesh(ribbonGeo, ribbonMat);
+      ribbonRight.position.set(0.3, 0.22, 0.02);
+      raraHead.add(ribbonRight);
+
+      // Eyes
+      const eyeGeo = new THREE.SphereGeometry(0.04, 16, 16);
+      const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+      leftEye.position.set(-0.12, 0.05, 0.32);
+      raraHead.add(leftEye);
+
+      const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+      rightEye.position.set(0.12, 0.05, 0.32);
+      raraHead.add(rightEye);
+
+      // Smile (Torus)
+      const mouthGeo = new THREE.TorusGeometry(0.06, 0.015, 8, 16, Math.PI);
+      const mouthMat = new THREE.MeshBasicMaterial({ color: 0xbe123c });
+      const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+      mouth.position.set(0, -0.1, 0.33);
+      mouth.rotation.x = Math.PI;
+      raraHead.add(mouth);
+
+      // Torso / Dress
+      const bodyGeo = new THREE.CylinderGeometry(0.18, 0.32, 0.65, 32);
+      raraBody = new THREE.Mesh(bodyGeo, dressMat);
+      raraBody.position.y = 0.8;
+      characterGroup.add(raraBody);
+
+      // Left Arm
+      const armGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.4, 16);
+      armGeo.translate(0, -0.2, 0);
+      raraLeftArm = new THREE.Mesh(armGeo, skinMat);
+      raraLeftArm.position.set(-0.25, 1.05, 0);
+      characterGroup.add(raraLeftArm);
+
+      // Right Arm (Waving Arm)
+      raraRightArm = new THREE.Mesh(armGeo, skinMat);
+      raraRightArm.position.set(0.25, 1.05, 0);
+      characterGroup.add(raraRightArm);
+
+      raraScene.add(characterGroup);
+
+      animateRara();
+    }
+
+    function animateRara() {
+      requestAnimationFrame(animateRara);
+      raraAnimTime += 0.04;
+
+      // Gentle Breathing & Head Tilt Animation
+      if (raraHead) {
+        raraHead.position.y = 1.35 + Math.sin(raraAnimTime * 1.5) * 0.02;
+        raraHead.rotation.z = Math.sin(raraAnimTime * 0.8) * 0.05;
+        raraHead.rotation.y = Math.sin(raraAnimTime * 0.5) * 0.12;
+      }
+
+      // Default Arm Swaying
+      if (raraLeftArm) {
+        raraLeftArm.rotation.z = 0.2 + Math.sin(raraAnimTime * 1.2) * 0.08;
+      }
+
+      // Waving Gesture Logic
+      if (isWaving && raraRightArm) {
+        waveTimer += 0.1;
+        raraRightArm.rotation.z = -2.2 + Math.sin(waveTimer * 8) * 0.3;
+        if (waveTimer > 6.28 * 2) {
+          isWaving = false;
+          waveTimer = 0;
+        }
+      } else if (raraRightArm) {
+        raraRightArm.rotation.z = -0.2 - Math.sin(raraAnimTime * 1.2) * 0.08;
+      }
+
+      raraRenderer.render(raraScene, raraCamera);
+    }
+
+    function waveRara() {
+      isWaving = true;
+      waveTimer = 0;
+      speakRaraDialog("Halo! Aku Rara, siap mendampingi kalian belajar Informatika!");
+      playSound('correct');
+    }
+
+    function speakRaraDialog(text) {
+      const dialogEl = document.getElementById('rara-dialog-text');
+      dialogEl.innerText = `"${text}"`;
+      isWaving = true;
+      waveTimer = 0;
+    }
+
+    function triggerRaraGuide() {
+      speakRaraDialog("Aturan Game: 6 pemain bergantian kocok dadu. Jawab soal cerita perangkat keras. Benar = +2 poin & maju! Salah = 0 poin & tidak maju. Hati-hati dengan ular!");
+      playSound('ladder');
+    }
+
+    /* =======================================================
+       2. WEB AUDIO SYNTHESIZER ENGINE
+       ======================================================= */
+    let audioEnabled = true;
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playSound(type) {
+      if (!audioEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        if (type === 'dice') {
+          for (let i = 0; i < 6; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150 + Math.random() * 300, now + i * 0.05);
+            gain.gain.setValueAtTime(0.15, now + i * 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + (i + 1) * 0.05);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + i * 0.05);
+            osc.stop(now + (i + 1) * 0.05);
+          }
+        } else if (type === 'correct') {
+          const notes = [523.25, 659.25, 783.99];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+            gain.gain.setValueAtTime(0.2, now + idx * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.3);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.1);
+            osc.stop(now + idx * 0.1 + 0.3);
+          });
+        } else if (type === 'wrong') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(140, now);
+          osc.frequency.linearRampToValueAtTime(90, now + 0.3);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'ladder') {
+          const notes = [300, 400, 500, 600, 750];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+            gain.gain.setValueAtTime(0.15, now + idx * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.2);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.08);
+            osc.stop(now + idx * 0.08 + 0.2);
+          });
+        } else if (type === 'snake') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(500, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.4);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        } else if (type === 'win') {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+            gain.gain.setValueAtTime(0.3, now + idx * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.5);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.15);
+            osc.stop(now + idx * 0.15 + 0.5);
+          });
+        }
+      } catch (e) {
+        console.log("Audio play suppressed", e);
+      }
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const icon = document.getElementById('sound-icon');
+      const btn = document.getElementById('sound-toggle');
+      if (audioEnabled) {
+        icon.className = 'fa-solid fa-volume-high';
+        btn.classList.remove('text-slate-400');
+        btn.classList.add('text-yellow-400');
+      } else {
+        icon.className = 'fa-solid fa-volume-xmark';
+        btn.classList.remove('text-yellow-400');
+        btn.classList.add('text-slate-400');
+      }
+    }
+
+    /* =======================================================
+       3. GAME CONFIGURATION & MAP
+       ======================================================= */
+    const cellPalette = ['#1e293b', '#0f172a', '#1e1b4b', '#022c22', '#311042', '#1c1917'];
+
+    const ladders = { 3: 15, 11: 26, 19: 38, 27: 42, 35: 47 };
+    const snakes = { 17: 6, 29: 12, 39: 21, 45: 31, 49: 33 };
+
+    const players = [
+      { id: 1, name: "Pemain 1", color: "#ef4444", classColor: "bg-p1", pos: 1, score: 0 },
+      { id: 2, name: "Pemain 2", color: "#3b82f6", classColor: "bg-p2", pos: 1, score: 0 },
+      { id: 3, name: "Pemain 3", color: "#10b981", classColor: "bg-p3", pos: 1, score: 0 },
+      { id: 4, name: "Pemain 4", color: "#f59e0b", classColor: "bg-p4", pos: 1, score: 0 },
+      { id: 5, name: "Pemain 5", color: "#8b5cf6", classColor: "bg-p5", pos: 1, score: 0 },
+      { id: 6, name: "Pemain 6", color: "#ec4899", classColor: "bg-p6", pos: 1, score: 0 },
+    ];
+
+    let currentPlayerIdx = 0;
+    let pendingDiceValue = 0;
+    let currentActiveQuestion = null;
+
+    /* =======================================================
+       4. 50 SOAL CERITA PERANGKAT KERAS KOMPUTER
+       ======================================================= */
+    const questionBank = [
+      { q: "Rian ingin menggetik tugas makalah sekolah di laptop miliknya. Perangkat keras input utama yang ia gunakan untuk mengetik huruf, angka, dan tombol Enter adalah...", opts: ["Keyboard", "Mouse", "Monitor", "Printer"], correct: 0 },
+      { q: "Siti sedang mengikuti kelas online via Zoom. Agar guru dan teman-temannya dapat melihat wajah Siti secara live, perangkat keras kamera yang terpasang dinamakan...", opts: ["Microphone", "Webcam", "Scanner", "Projector"], correct: 1 },
+      { q: "Budi menggeser kursor di layar komputer lalu mengklik dua kali ikon folder untuk membuka tugasnya. Alat penunjuk ini dinamakan...", opts: ["Joystick", "Keyboard", "Mouse", "Trackpad"], correct: 2 },
+      { q: "Pak Hasan ingin mencetak dokumen surat izin dari laptop menjadi lembaran kertas fisik untuk ditandatangani. Alat yang wajib digunakan adalah...", opts: ["Scanner", "Plotter", "Monitor", "Printer"], correct: 3 },
+      { q: "Dina mendengarkan musik di ruang kelas yang hening tanpa mengganggu orang lain menggunakan perangkat earphone yang dipasang di telinga. Earphone berfungsi sebagai perangkat...", opts: ["Output (Keluaran)", "Input (Masukan)", "Storage (Penyimpanan)", "Processing (Pemroses)"], correct: 0 },
+      { q: "Saat listrik sekolah padam mendadak, komputer laboratorium tempat Andi bekerja tidak langsung mati sehingga ia sempat menyimpan datanya. Komponen penyimpan daya cadangan ini adalah...", opts: ["Power Supply", "UPS (Uninterruptible Power Supply)", "Stabilizer", "Generator"], correct: 1 },
+      { q: "Lani memiliki foto cetak kenangan masa kecil. Ia ingin mengubah foto kertas tersebut menjadi file gambar digital di komputernya. Alat pemindai yang tepat adalah...", opts: ["Printer", "Webcam", "Scanner", "Projector"], correct: 2 },
+      { q: "Ibu Guru ingin menampilkan tayangan slide materi Informatika dari laptopnya ke layar putih besar di dinding depan kelas agar terlihat seluruh siswa. Alat tersebut adalah...", opts: ["Monitor CRT", "Televisi LED", "Printer Spanduk", "LCD Projector"], correct: 3 },
+      { q: "Ketika membuka banyak aplikasi di smartphone sekaligus, HP membutuhkan kapasitas memori kerja sementara yang cukup agar tidak lag/lemot. Memori acak sementara ini adalah...", opts: ["RAM (Random Access Memory)", "ROM (Read Only Memory)", "Harddisk", "Flashdisk"], correct: 0 },
+      { q: "Komponen utama berupa chip yang sering dinamakan sebagai 'otak' dari komputer yang mengeksekusi semua instruksi program adalah...", opts: ["RAM", "CPU / Prosesor", "Motherboard", "Power Supply"], correct: 1 },
+      { q: "Dewi ingin memindahkan file presentasi berukuran 500 MB dari komputer rumah ke komputer sekolah menggunakan benda kecil portabel yang dicolokkan ke port USB. Benda ini adalah...", opts: ["Harddisk Internal", "CD-ROM", "Flashdisk (USB Flash Drive)", "Memory Card SD"], correct: 2 },
+      { q: "Seluruh komponen hardware seperti CPU, RAM, dan VGA Card terpasang pada papan sirkuit utama di dalam casing komputer yang dinamakan...", opts: ["Power Supply Unit", "Casing Tower", "Harddisk Bay", "Motherboard (Mainboard)"], correct: 3 },
+      { q: "Di kasir minimarket, petugas memindai garis-garis hitam putih pada bungkus makanan menggunakan alat sinar merah. Alat tersebut adalah...", opts: ["Barcode Scanner", "OCR Reader", "Thermal Printer", "Magnetic Card Reader"], correct: 0 },
+      { q: "Ahmad bermain game simulator pesawat terbang di PC rumahnya. Agar mengendalikan arah pesawat lebih realistis, ia menggunakan tongkat kendali khusus bernama...", opts: ["Keyboard", "Joystick", "Mouse Optical", "Drawing Tablet"], correct: 1 },
+      { q: "Sistem operasi Windows dan seluruh game di PC tersimpan secara permanen pada media penyimpanan utama jangka panjang yaitu...", opts: ["RAM", "Cache Memory", "Harddisk / SSD", "ROM"], correct: 2 },
+      { q: "Seorang desainer grafis membutuhkan pengolahan tampilan visual 3D yang sangat tinggi dan lancar di layarnya. Hardware khusus pemroses grafis visual adalah...", opts: ["Sound Card", "Network Interface Card", "RAM", "VGA Card / GPU"], correct: 3 },
+      { q: "Agar komputer desktop dapat dinyalakan dan menerima aliran arus listrik searah (DC) dari colokan listrik dinding (AC), digunakan komponen...", opts: ["Power Supply Unit (PSU)", "UPS", "Prosesor", "Motherboard"], correct: 0 },
+      { q: "Layar smartphone modern memungkinkan kita mengetik pesan sekaligus melihat tampilannya secara langsung. Layar sentuh ini berfungsi sebagai...", opts: ["Hanya Perangkat Output", "Perangkat Input sekaligus Output", "Hanya Perangkat Input", "Media Storage Utama"], correct: 1 },
+      { q: "Roni mengambil foto dari kamera digitalnya, lalu mencabut kartu memori persegi kecil dari kamera untuk dimasukkan ke slot laptop. Kartu memori tersebut adalah...", opts: ["Flashdisk", "SIM Card", "SD Card / Memory Card", "SSD M.2"], correct: 2 },
+      { q: "Suara lagu dari smartphone terdengar terlalu pelan di dalam ruangan besar, sehingga dipasangkan kabel ke speaker aktif. Speaker berfungsi sebagai perangkat...", opts: ["Input", "Processing", "Storage", "Output"], correct: 3 },
+      { q: "Agar suhu pada komponen CPU / Prosesor tidak mengalami overheat (panas berlebih) saat bekerja berat, di atasnya dipasangkan pendingin kipas dan besi radiator bernama...", opts: ["Heatsink Fan (Cooler)", "Power Fan", "Case Fan", "Exhaust"], correct: 0 },
+      { q: "Saat mati lampu, jam dan settingan konfigurasi BIOS di komputer tetap tidak terreset karena ada baterai kecil berbentuk koin di motherboard bernama...", opts: ["Baterai AAA", "Baterai CMOS", "Baterai Lithium HP", "Baterai Charger"], correct: 1 },
+      { q: "Anisa yang berprofesi sebagai komikus menggambar karakter kartun secara presisi menggunakan pen stylus di atas papan pad khusus yang terhubung ke komputer. Alat ini adalah...", opts: ["Touchpad", "Mouse Wireless", "Graphic Drawing Tablet", "Scanner Flatbed"], correct: 2 },
+      { q: "Untuk merekam suara vokal saat membuat rekaman lagu di laptop, penyanyi membutuhkan perangkat masukan suara yaitu...", opts: ["Speaker", "Earphone", "Sound Card", "Microphone"], correct: 3 },
+      { q: "Penyimpanan modern berbasis chip tanpa piringan mekanis berputar yang membuat booting laptop jauh lebih cepat dibandingkan Harddisk konvensional adalah...", opts: ["SSD (Solid State Drive)", "HDD (Hard Disk Drive)", "CD-RW Drive", "Floppy Disk"], correct: 0 },
+      { q: "Kabel berwarna hitam/putih yang digunakan untuk menghubungkan laptop ke TV LED modern guna mengirim sinyal gambar dan suara jernih berdefinisi tinggi adalah...", opts: ["Kabel Power", "Kabel HDMI", "Kabel LAN", "Kabel Audio Jack"], correct: 1 },
+      { q: "Untuk menyambungkan PC kantor ke jaringan internet lokal melalui kabel UTP, kabel dicolokkan pada port hardware bernama...", opts: ["Port USB", "Port VGA", "Port LAN / Ethernet", "Port Audio"], correct: 2 },
+      { q: "Perangkat keras jaringan yang berfungsi memancarkan sinyal internet nirkabel (Wi-Fi) di area rumah dinamakan...", opts: ["Router / Access Point", "Switch Hub", "Server PC", "Modem Dial-up"], correct: 0 },
+      { q: "Hardware yang berfungsi mengolah data sinyal audio menjadi suara yang bisa didengar melalui speaker adalah...", opts: ["VGA Card", "Sound Card", "LAN Card", "Processor"], correct: 1 },
+      { q: "Di bawah ini yang seluruhnya merupakan kelompok PERANGKAT INPUT (Masukan) adalah...", opts: ["Printer, Monitor, Speaker", "Keyboard, Mouse, Webcam", "Harddisk, Flashdisk, RAM", "CPU, VGA, Motherboard"], correct: 1 },
+      { q: "Perangkat keras keluaran (output) yang berfungsi menampilkan antarmuka visual antarmuka sistem operasi dan aplikasi adalah...", opts: ["Keyboard", "Mouse", "Scanner", "Monitor"], correct: 3 },
+      { q: "Tito memindahkan data cadangan video berukuran 1 Terabyte ke luar laptop menggunakan tempat penyimpanan eksternal yaitu...", opts: ["Harddisk Eksternal / SSD Eksternal", "Flashdisk 2GB", "CD-R 700MB", "Disket"], correct: 0 },
+      { q: "Tombol fisik utama pada casing komputer yang ditekan pertama kali untuk menyalakan komputer dinamakan...", opts: ["Tombol Reset", "Tombol Power", "Tombol Sleep", "Tombol Eject"], correct: 1 },
+      { q: "Pengganti mouse pada laptop yang berupa papan sentuh datar yang digerakkan menggunakan jari jemari dinamakan...", opts: ["Trackball", "Joystick", "Touchpad", "Mouse Pen"], correct: 2 },
+      { q: "Media penyimpanan berbentuk piringan optik bundar pipih yang dibaca menggunakan sinar laser dinamakan...", opts: ["Harddisk", "Flashdisk", "Memory Card", "CD / DVD / Blu-ray"], correct: 3 },
+      { q: "Di spesifikasi smartphone tertulis Snapdragon 8 Gen 2. Istilah Snapdragon ini menunjuk pada jenis...", opts: ["Prosesor / Chipset (CPU)", "Layar Display", "Baterai", "Kamera"], correct: 0 },
+      { q: "Alat pemindai sidik jari pada layar HP untuk membuka kunci keamanan dinamakan...", opts: ["Face ID", "Fingerprint Sensor", "Barcode Scanner", "Retina Scanner"], correct: 1 },
+      { q: "Perangkat cetak khusus berukuran sangat besar yang digunakan percetakan untuk mencetak baliho dan banner pinggir jalan adalah...", opts: ["Printer Deskjet", "Dot Matrix", "Plotter", "Laserjet"], correct: 2 },
+      { q: "Colokan standar universal berbentuk persegi panjang gepeng yang paling banyak digunakan untuk menghubungkan flashdisk dan mouse adalah...", opts: ["Port VGA", "Port HDMI", "Port LAN", "Port USB"], correct: 3 },
+      { q: "Komponen internal berupa kartu nirkabel agar laptop bisa menangkap sinyal Wi-Fi di kafe adalah...", opts: ["Wi-Fi Card / Adapter", "Bluetooth Module", "LAN Card", "VGA Card"], correct: 0 },
+      { q: "Tombol pada keyboard yang berfungsi untuk menghapus satu huruf di sebelah KIRI kursor adalah...", opts: ["Delete", "Backspace", "Spacebar", "Enter"], correct: 1 },
+      { q: "Tombol pada keyboard yang digunakan jika kita ingin mengunci huruf menjadi KAPITAL / BESAR seluruhnya adalah...", opts: ["Shift", "Ctrl", "CapsLock", "Tab"], correct: 2 },
+      { q: "Chip memori yang berisi program bawaan pabrik (BIOS) yang tidak akan hilang meskipun listrik dicabut dinamakan...", opts: ["RAM", "Harddisk", "Cache", "ROM (Read Only Memory)"], correct: 3 },
+      { q: "Gel khusus berwarna abu-abu yang dioleskan di antara permukaan CPU dan heatsink agar panas tersalurkan sempurna dinamakan...", opts: ["Thermal Paste", "Glue Thermal", "Silicone Gel", "Coolant Liquid"], correct: 0 },
+      { q: "Sensor pada HP yang secara otomatis mematikan lampu layar saat HP didekatkan ke telinga ketika menelpon adalah...", opts: ["Gyroscope", "Proximity Sensor", "Accelerometer", "Light Sensor"], correct: 1 },
+      { q: "Kamera utama yang berada di bagian sisi belakang badan smartphone dinamakan...", opts: ["Front Camera", "Webcam", "Rear Camera", "Action Cam"], correct: 2 },
+      { q: "Jika colokan USB di laptop kita terbatas, kita bisa menambah jumlah colokan USB menggunakan alat pemisah bernama...", opts: ["USB Extender", "USB Cable", "USB Splitter", "USB Hub"], correct: 3 },
+      { q: "Perangkat penampung daya baterai portabel yang digunakan untuk mengisi ulang daya HP saat di perjalanan adalah...", opts: ["Powerbank", "Charger Wall", "Adapter DC", "UPS Mini"], correct: 0 },
+      { q: "Layar monitor yang dapat merespons sentuhan jari langsung tanpa perlu menggunakan mouse dinamakan...", opts: ["Monitor CRT", "Touchscreen Monitor", "Monitor LED Biasa", "Projector Screen"], correct: 1 },
+      { q: "Hardware penangkap sinyal suara agar lawan bicara mendengar vokal kita saat panggilan seluler adalah...", opts: ["Speaker", "Earphone", "Microphone", "Sound Card"], correct: 2 }
+    ];
+
+    /* =======================================================
+       5. BOARD RENDERER & SVG OVERLAY DRAWER
+       ======================================================= */
+    const cellCenters = {};
+
+    function renderBoard() {
+      const gridContainer = document.getElementById('board-grid');
+      const tokensLayer = document.getElementById('tokens-layer');
+      gridContainer.innerHTML = '';
+      tokensLayer.innerHTML = '';
+
+      let cellNum = 50;
+      for (let row = 5; row >= 1; row--) {
+        let rowCells = [];
+        for (let col = 1; col <= 10; col++) {
+          rowCells.push(cellNum);
+          cellNum--;
+        }
+
+        if (row % 2 === 1) {
+          rowCells.reverse();
+        }
+
+        rowCells.forEach((num, colIdx) => {
+          const xPerc = (colIdx + 0.5) * 10;
+          const yPerc = ((5 - row) + 0.5) * 20;
+          cellCenters[num] = { x: xPerc, y: yPerc };
+
+          const cell = document.createElement('div');
+          cell.className = 'board-cell border border-slate-700/60 transition-transform';
+          cell.id = `cell-${num}`;
+          
+          const bgColor = cellPalette[(num - 1) % cellPalette.length];
+          cell.style.backgroundColor = bgColor;
+
+          let badgeHtml = '';
+          if (ladders[num]) {
+            badgeHtml = `<span class="entity-badge bg-amber-500 text-slate-950 shadow"><i class="fa-solid fa-stairs"></i> ${ladders[num]}</span>`;
+          } else if (snakes[num]) {
+            badgeHtml = `<span class="entity-badge bg-emerald-500 text-slate-950 shadow"><i class="fa-solid fa-worm"></i> ${snakes[num]}</span>`;
+          }
+
+          cell.innerHTML = `
+            <div class="w-full flex items-center justify-between pointer-events-none">
+              <span class="text-[10px] sm:text-xs font-black text-slate-300/90 bg-slate-900/70 px-1 rounded">${num}</span>
+              ${badgeHtml}
+            </div>
+          `;
+          gridContainer.appendChild(cell);
+
+          const tokenSlot = document.createElement('div');
+          tokenSlot.className = 'w-full h-full flex flex-wrap gap-0.5 items-center justify-center pointer-events-none';
+          tokenSlot.id = `tokens-slot-${num}`;
+          tokensLayer.appendChild(tokenSlot);
+        });
+      }
+
+      drawSVGOverlays();
+      updateTokensOnBoard();
+    }
+
+    function drawSVGOverlays() {
+      const laddersGroup = document.getElementById('ladders-group');
+      const snakesGroup = document.getElementById('snakes-group');
+      laddersGroup.innerHTML = '';
+      snakesGroup.innerHTML = '';
+
+      const svgOverlay = document.getElementById('svg-overlay');
+      const rect = svgOverlay.getBoundingClientRect();
+      const width = rect.width || 800;
+      const height = rect.height || 400;
+
+      // Draw Ladders
+      Object.entries(ladders).forEach(([start, end]) => {
+        const c1 = cellCenters[start];
+        const c2 = cellCenters[end];
+
+        const x1 = (c1.x / 100) * width;
+        const y1 = (c1.y / 100) * height;
+        const x2 = (c2.x / 100) * width;
+        const y2 = (c2.y / 100) * height;
+
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy);
+        const railOffset = 12;
+
+        const nx = (-dy / len) * railOffset;
+        const ny = (dx / len) * railOffset;
+
+        const lx1 = x1 + nx, ly1 = y1 + ny;
+        const lx2 = x2 + nx, ly2 = y2 + ny;
+        const rx1 = x1 - nx, ry1 = y1 - ny;
+        const rx2 = x2 - nx, ry2 = y2 - ny;
+
+        const ladderPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        ladderPath.setAttribute("d", `M ${lx1} ${ly1} L ${lx2} ${ly2} M ${rx1} ${ry1} L ${rx2} ${ry2}`);
+        ladderPath.setAttribute("stroke", "url(#ladderGrad)");
+        ladderPath.setAttribute("stroke-width", "6");
+        ladderPath.setAttribute("stroke-linecap", "round");
+        ladderPath.setAttribute("filter", "url(#shadow)");
+        laddersGroup.appendChild(ladderPath);
+
+        const numSteps = Math.max(3, Math.floor(len / 35));
+        for (let i = 1; i < numSteps; i++) {
+          const t = i / numSteps;
+          const rx_a = lx1 + t * (lx2 - lx1);
+          const ry_a = ly1 + t * (ly2 - ly1);
+          const rx_b = rx1 + t * (rx2 - rx1);
+          const ry_b = ry1 + t * (ry2 - ry1);
+
+          const rung = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          rung.setAttribute("x1", rx_a);
+          rung.setAttribute("y1", ry_a);
+          rung.setAttribute("x2", rx_b);
+          rung.setAttribute("y2", ry_b);
+          rung.setAttribute("stroke", "#fef08a");
+          rung.setAttribute("stroke-width", "4");
+          rung.setAttribute("stroke-linecap", "round");
+          rung.setAttribute("filter", "url(#shadow)");
+          laddersGroup.appendChild(rung);
+        }
+      });
+
+      // Draw Snakes
+      Object.entries(snakes).forEach(([head, tail], index) => {
+        const cHead = cellCenters[head];
+        const cTail = cellCenters[tail];
+
+        const x1 = (cHead.x / 100) * width;
+        const y1 = (cHead.y / 100) * height;
+        const x2 = (cTail.x / 100) * width;
+        const y2 = (cTail.y / 100) * height;
+
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        
+        const curveOffset = (index % 2 === 0 ? 1 : -1) * 60;
+        const cx1 = mx + curveOffset;
+        const cy1 = my - curveOffset / 2;
+
+        const gradientId = index % 2 === 0 ? "url(#snakeGrad1)" : "url(#snakeGrad2)";
+
+        const snakePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        snakePath.setAttribute("d", `M ${x1} ${y1} Q ${cx1} ${cy1} ${x2} ${y2}`);
+        snakePath.setAttribute("fill", "none");
+        snakePath.setAttribute("stroke", gradientId);
+        snakePath.setAttribute("stroke-width", "16");
+        snakePath.setAttribute("stroke-linecap", "round");
+        snakePath.setAttribute("filter", "url(#shadow)");
+        snakesGroup.appendChild(snakePath);
+
+        const spine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        spine.setAttribute("d", `M ${x1} ${y1} Q ${cx1} ${cy1} ${x2} ${y2}`);
+        spine.setAttribute("fill", "none");
+        spine.setAttribute("stroke", "#fef08a");
+        spine.setAttribute("stroke-width", "3");
+        spine.setAttribute("stroke-dasharray", "6,6");
+        snakesGroup.appendChild(spine);
+
+        const headGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        
+        const headCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        headCircle.setAttribute("cx", x1);
+        headCircle.setAttribute("cy", y1);
+        headCircle.setAttribute("r", "12");
+        headCircle.setAttribute("fill", index % 2 === 0 ? "#047857" : "#be123c");
+        headCircle.setAttribute("stroke", "#fef08a");
+        headCircle.setAttribute("stroke-width", "2");
+        headCircle.setAttribute("filter", "url(#shadow)");
+        headGroup.appendChild(headCircle);
+
+        const eye1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        eye1.setAttribute("cx", x1 - 4);
+        eye1.setAttribute("cy", y1 - 3);
+        eye1.setAttribute("r", "2.5");
+        eye1.setAttribute("fill", "#fff");
+        headGroup.appendChild(eye1);
+
+        const eye2 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        eye2.setAttribute("cx", x1 + 4);
+        eye2.setAttribute("cy", y1 - 3);
+        eye2.setAttribute("r", "2.5");
+        eye2.setAttribute("fill", "#fff");
+        headGroup.appendChild(eye2);
+
+        snakesGroup.appendChild(headGroup);
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      drawSVGOverlays();
+    });
+
+    function updateTokensOnBoard() {
+      for (let i = 1; i <= 50; i++) {
+        const slot = document.getElementById(`tokens-slot-${i}`);
+        if (slot) slot.innerHTML = '';
+      }
+
+      players.forEach(p => {
+        const targetSlot = document.getElementById(`tokens-slot-${p.pos}`);
+        if (targetSlot) {
+          const token = document.createElement('div');
+          token.className = `token-item ${p.classColor}`;
+          token.style.backgroundColor = p.color;
+          token.innerText = `P${p.id}`;
+          token.title = `${p.name} (Kotak ${p.pos})`;
+          targetSlot.appendChild(token);
+        }
+      });
+    }
+
+    function updateUI() {
+      const activePlayer = players[currentPlayerIdx];
+
+      const turnCard = document.getElementById('turn-card');
+      turnCard.style.borderColor = activePlayer.color;
+
+      const badge = document.getElementById('turn-badge');
+      badge.innerText = activePlayer.name;
+      badge.style.backgroundColor = activePlayer.color + '33';
+      badge.style.color = '#ffffff';
+
+      const avatar = document.getElementById('player-avatar');
+      avatar.innerText = `P${activePlayer.id}`;
+      avatar.style.backgroundColor = activePlayer.color;
+
+      document.getElementById('player-name-display').innerText = activePlayer.name;
+      document.getElementById('player-status-sub').innerHTML = `Posisi: <b class="text-yellow-400">Kotak ${activePlayer.pos}</b> | Skor: <b class="text-emerald-400">${activePlayer.score} Poin</b>`;
+
+      const scoreList = document.getElementById('scoreboard-list');
+      scoreList.innerHTML = '';
+
+      players.forEach((p, idx) => {
+        const isCurrent = idx === currentPlayerIdx;
+        const row = document.createElement('div');
+        row.className = `flex items-center justify-between p-2 rounded-xl text-xs sm:text-sm border transition-all ${
+          isCurrent 
+            ? 'bg-slate-700/80 border-indigo-400 shadow-md font-bold' 
+            : 'bg-slate-900/50 border-slate-800 text-slate-300'
+        }`;
+
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-full inline-block border border-white" style="background-color: ${p.color}"></span>
+            <span>${p.name}</span>
+            ${isCurrent ? '<i class="fa-solid fa-chevron-right text-indigo-400 text-xs animate-pulse"></i>' : ''}
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="bg-slate-800 px-2 py-0.5 rounded text-yellow-300 font-mono">Kotak ${p.pos}</span>
+            <span class="text-emerald-400 font-bold min-w-[45px] text-right">${p.score} pt</span>
+          </div>
+        `;
+        scoreList.appendChild(row);
+      });
+    }
+
+    /* =======================================================
+       6. GAMEPLAY CONTROLS (DICE & QUESTIONS)
+       ======================================================= */
+    function rollDice() {
+      playSound('dice');
+      const rollBtn = document.getElementById('roll-btn');
+      rollBtn.disabled = true;
+      rollBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+      const activePlayer = players[currentPlayerIdx];
+      speakRaraDialog(`Semangat ${activePlayer.name}! Mengocok dadu...`);
+
+      const diceBox = document.getElementById('dice-view');
+      let rollCount = 0;
+
+      const diceInterval = setInterval(() => {
+        const tempVal = Math.floor(Math.random() * 6) + 1;
+        diceBox.innerHTML = `<i class="fa-solid fa-dice-${['one','two','three','four','five','six'][tempVal - 1]}"></i>`;
+        rollCount++;
+
+        if (rollCount > 10) {
+          clearInterval(diceInterval);
+          pendingDiceValue = Math.floor(Math.random() * 6) + 1;
+          diceBox.innerHTML = `<span class="text-4xl font-black">${pendingDiceValue}</span>`;
+          
+          setTimeout(() => {
+            openQuestionModal();
+          }, 300);
+        }
+      }, 70);
+    }
+
+    function openQuestionModal() {
+      const activePlayer = players[currentPlayerIdx];
+      
+      const randomIdx = Math.floor(Math.random() * questionBank.length);
+      currentActiveQuestion = questionBank[randomIdx];
+
+      document.getElementById('modal-player-dot').style.backgroundColor = activePlayer.color;
+      document.getElementById('modal-player-name').innerText = `Giliran Jawab: ${activePlayer.name}`;
+      document.getElementById('modal-dice-value').innerText = pendingDiceValue;
+      document.getElementById('modal-question-text').innerText = currentActiveQuestion.q;
+
+      speakRaraDialog(`Pertanyaan untuk ${activePlayer.name}! Jawab dengan teliti ya.`);
+
+      const optionsBox = document.getElementById('modal-options');
+      optionsBox.innerHTML = '';
+
+      const optionLabels = ['A', 'B', 'C', 'D'];
+      currentActiveQuestion.opts.forEach((optText, idx) => {
+        const optBtn = document.createElement('button');
+        optBtn.className = 'btn-touch w-full bg-slate-800 hover:bg-indigo-950/80 active:bg-indigo-900 border-2 border-slate-700 hover:border-indigo-500 text-left p-3.5 sm:p-4 rounded-2xl flex items-center gap-3 transition-all text-slate-100 font-medium text-sm sm:text-base shadow-md min-h-[54px]';
+        
+        optBtn.innerHTML = `
+          <span class="w-8 h-8 rounded-xl bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 flex items-center justify-center font-bold text-base shrink-0">${optionLabels[idx]}</span>
+          <span class="leading-snug">${optText}</span>
+        `;
+
+        optBtn.onclick = () => processAnswer(idx);
+        optionsBox.appendChild(optBtn);
+      });
+
+      document.getElementById('question-modal').classList.remove('hidden');
+    }
+
+    function processAnswer(selectedIdx) {
+      document.getElementById('question-modal').classList.add('hidden');
+      const activePlayer = players[currentPlayerIdx];
+      const isCorrect = selectedIdx === currentActiveQuestion.correct;
+
+      if (isCorrect) {
+        playSound('correct');
+        activePlayer.score += 2;
+        
+        const oldPos = activePlayer.pos;
+        let newPos = oldPos + pendingDiceValue;
+
+        if (newPos > 50) {
+          newPos = 50;
+        }
+
+        activePlayer.pos = newPos;
+
+        let movementNote = `${activePlayer.name} MAJU ${pendingDiceValue} langkah ke Kotak ${newPos}!`;
+        speakRaraDialog(`Hebat sekali ${activePlayer.name}! Jawabanmu tepat (+2 Poin).`);
+
+        if (ladders[newPos]) {
+          setTimeout(() => playSound('ladder'), 400);
+          const ladderTo = ladders[newPos];
+          movementNote += `\n\n🪜 MANTAP! Menemukan Tangga! Naik dari Kotak ${newPos} ➔ Kotak ${ladderTo}!`;
+          activePlayer.pos = ladderTo;
+          speakRaraDialog(`Wah ${activePlayer.name} menemukan TANGGA! Naik tinggi!`);
+        } else if (snakes[newPos]) {
+          setTimeout(() => playSound('snake'), 400);
+          const snakeTo = snakes[newPos];
+          movementNote += `\n\n🐍 ADUH! Terkena Ular! Turun dari Kotak ${newPos} ➔ Kotak ${snakeTo}!`;
+          activePlayer.pos = snakeTo;
+          speakRaraDialog(`Aduh ${activePlayer.name} tergigit ULAR! Jangan patah semangat ya.`);
+        }
+
+        setTimeout(() => {
+          showNotification("JAWABAN BENAR! (+2 Poin)", movementNote, "emerald");
+          finishTurn();
+        }, 200);
+
+      } else {
+        playSound('wrong');
+        const correctText = currentActiveQuestion.opts[currentActiveQuestion.correct];
+        speakRaraDialog(`Sayang sekali ${activePlayer.name}, jawabanmu kurang tepat. Coba lagi di giliran berikutnya!`);
+        
+        setTimeout(() => {
+          showNotification(
+            "JAWABAN SALAH! (0 Poin)", 
+            `Jawaban yang benar adalah:\n"${correctText}"\n\n${activePlayer.name} TIDAK MAJU dan tetap di Kotak ${activePlayer.pos}.`, 
+            "rose"
+          );
+          finishTurn();
+        }, 200);
+      }
+    }
+
+    function finishTurn() {
+      updateTokensOnBoard();
+
+      const activePlayer = players[currentPlayerIdx];
+      
+      if (activePlayer.pos === 50) {
+        playSound('win');
+        triggerConfetti();
+        speakRaraDialog(`LUAR BIASA! ${activePlayer.name} Menjadi JUARA Ular Tangga Informatika! 🎉`);
+        document.getElementById('win-player-text').innerText = `🏆 SELAMAT! ${activePlayer.name} Mencapai Kotak 50!`;
+        document.getElementById('win-score-info').innerHTML = `Total Skor Akhir: <b class="text-emerald-400 text-lg">${activePlayer.score} Poin</b>`;
+        document.getElementById('win-modal').classList.remove('hidden');
+        return;
+      }
+
+      currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
+      updateUI();
+
+      const rollBtn = document.getElementById('roll-btn');
+      rollBtn.disabled = false;
+      rollBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+
+    function showNotification(title, message, colorType) {
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+      
+      const borderColor = colorType === 'emerald' ? 'border-emerald-500' : 'border-rose-500';
+      const textColor = colorType === 'emerald' ? 'text-emerald-400' : 'text-rose-400';
+      const btnBg = colorType === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500';
+
+      modal.innerHTML = `
+        <div class="bg-slate-900 border-2 ${borderColor} rounded-2xl max-w-sm w-full p-5 shadow-2xl text-center space-y-3">
+          <h3 class="font-extrabold text-xl ${textColor}">${title}</h3>
+          <p class="text-sm text-slate-200 whitespace-pre-line leading-relaxed">${message}</p>
+          <button onclick="this.parentElement.parentElement.remove()" class="btn-touch w-full ${btnBg} text-white font-bold py-3 rounded-xl shadow-lg mt-2">
+            Lanjutkan Permainan
+          </button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function triggerConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      }
+    }
+
+    function confirmReset() {
+      if (confirm("Apakah Anda yakin ingin mengulang permainan dari awal? Semua posisi dan skor akan direset.")) {
+        restartGame();
+      }
+    }
+
+    function restartGame() {
+      document.getElementById('win-modal').classList.add('hidden');
+      players.forEach(p => {
+        p.pos = 1;
+        p.score = 0;
+      });
+      currentPlayerIdx = 0;
+      updateTokensOnBoard();
+      updateUI();
+
+      speakRaraDialog("Game telah direset. Silakan kocok dadu untuk memulai kembali!");
+
+      const rollBtn = document.getElementById('roll-btn');
+      rollBtn.disabled = false;
+      rollBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      document.getElementById('dice-view').innerHTML = `<i class="fa-solid fa-dice-d6"></i>`;
+    }
+
+    /* =======================================================
+       7. INITIALIZATION ON WINDOW LOAD
+       ======================================================= */
+    window.addEventListener('load', () => {
+      initRara3DAvatar();
+      renderBoard();
+      updateUI();
+
+      document.body.addEventListener('touchstart', () => getAudioContext(), { once: true });
+      document.body.addEventListener('click', () => getAudioContext(), { once: true });
+    });
+  </script>
+</body>
+</html>
+```
